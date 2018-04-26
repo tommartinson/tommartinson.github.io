@@ -1,6 +1,8 @@
 body{
   font-family:Helvetica;
+  /*commenting out background
   background-image: url("/media/background-image.jpg");
+  */
 }
 
 h1{
