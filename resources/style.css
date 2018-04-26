@@ -5,7 +5,7 @@ body{
 h1{
   font-size:100px;
   font-weight: bold;
-  color: khaki;
+  color: DarkBlue;
   background-image: url("https://s3.amazonaws.com/codecademy-content/courses/freelance-1/unit-2/pattern.jpeg");
   text-align: center;
 }
@@ -16,19 +16,4 @@ h2{
   color:white;
 }
 
-#brushes{
-  background-color: mediumspringgreen;
-}
 
-#frames{
-  background-color: lightcoral;
-}
-
-#paint{
-  background-color: skyblue;
-}
-
-.price{
-  font-weight: bold;
-  color:blue;
-}
