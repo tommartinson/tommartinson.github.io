@@ -47,6 +47,7 @@ a:hover, a:focus {
 }
 ul, ol {
 	list-style: none;
+	display: inline;
 }
 .clearfix:after {
 	visibility: hidden;
@@ -225,13 +226,19 @@ header .intro-text {
 	margin: 15px 0 30px;
 }
 
+#about .about-links a{
+	font-size: 30px;
+	display: inline-block;
+	margin-left: 20px;
+	margin-top: 10px;
+	
+	
+}
 /* Portfolio Section -------------------*/
 #portfolio {
 	padding: 120px 0;
 	background: #cbe8f3;
 	text-align: center
-	
-
 }
 
 #portfolio p{
