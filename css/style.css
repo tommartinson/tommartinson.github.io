@@ -236,7 +236,7 @@ header .intro-text {
 }
 /* Portfolio Section -------------------*/
 #portfolio {
-	padding: 120px 0;
+	padding-top: 120px;
 	background: #cbe8f3;
 	text-align: center
 }
@@ -244,15 +244,23 @@ header .intro-text {
 #portfolio p{
 	line-height: 24px;
 	margin: 15px 30px 30px 30px;
+	text-align: left
 
 }
 
 #portfolio img{
 	display: inline-block;
-	width: 325px;
+	width: 350px;
 	height: auto;
-	margin-left: 20px;
-	margin-right: 20px;
+	
+	padding: 15px;
+	
+}
+
+#portfolio video{
+	display: inline-block;
+	
+	padding: 15px;
 }
 
 .project{
@@ -266,6 +274,34 @@ header .intro-text {
 	
 }
 
+.img__wrap{
+	position: relative;
+	height: auto;
+	width: auto;
+	display: inline-block;
+	
+}
+  
+.img__description{
+	position: absolute;
+	top: 10px;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	color: #fff;
+	visibility: visible;
+	opacity: 1;
+	font-size: 20px;
+  
+	/* transition effect. not necessary */
+	transition: opacity .2s, visibility .2s;
+}
+  
+.img__wrap:hover .img__description{
+	font-size: 30px;
+}
+
+  
 
 .btn-launch {
     width: 100%;
