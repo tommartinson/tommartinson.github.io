@@ -2,9 +2,9 @@
 
 Basic static website to display useful links. I wanted something clean and simple with just HTML and CSS and no scrolling or clicking around necessary to find the important info.
 
-Design Info:
+## Design Info:
 
-The Scrolling Background:
+### The Scrolling Background:
 
 	This relies entirely on CSS to do its thing, which is cool, but that makes
 	changing it a bit weird/tricky at first. You can still use pretty much any image
@@ -34,7 +34,7 @@ The Scrolling Background:
 		1500px wide.
 
 
-Credits:
+### Credits:
 	
 	Aerial by HTML5 UP:
 		html5up.net | @ajlkn
