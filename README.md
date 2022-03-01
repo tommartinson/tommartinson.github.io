@@ -1,6 +1,6 @@
 # tmartinson.com
 
-Basic static website to display useful links. I wanted something clean and simple with just HTML and CSS and no scrolling or clicking around necessary to find the important info.
+Basic static website to display useful links. I wanted something clean and simple with no JS with no scrolling or clicking around necessary to find the important info.
 
 ## Design Info:
 
