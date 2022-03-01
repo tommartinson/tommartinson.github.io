@@ -1,1 +1,0 @@
-Hello World! My name is Tom Martinson.  This is an ongoing project for a personal website in order to have an easy to get to place for all of my projects, social media, and other things of that sort.  I have been teaching myself HTML and CSS through online tutorials so some things might not work perfectly.  Thanks for checking it out. :)
