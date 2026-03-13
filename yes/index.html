@@ -9,6 +9,7 @@
 		<link rel="icon" href="media/favicon-96x96.png" type="image/x-icon">
 	</head>
 	<body>
+		<canvas id="matrix-canvas"></canvas>
 		<div id="terminal">
 			<div id="output"></div>
 			<div id="input-line">
@@ -20,10 +21,14 @@
 			const output = document.getElementById('output');
 			const input = document.getElementById('cmd-input');
 			const terminal = document.getElementById('terminal');
+			const canvas = document.getElementById('matrix-canvas');
+			const ctx = canvas.getContext('2d');
 
 			const PROMPT = 'tom@martinson:~$';
 
 			let vimTrapped = false;
+			let matrixRunning = false;
+			let matrixFrame = null;
 
 			const FORTUNES = [
 				'"There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors."',
@@ -75,9 +80,7 @@
 					'<a href="https://twitter.com/Tom_Martinson" target="_blank">twitter</a>      twitter.com/Tom_Martinson',
 					'<a href="mailto:tomemartinson@gmail.com" target="_blank">email</a>        tomemartinson@gmail.com',
 				],
-				ls: () => [
-					'about.txt   contact.txt',
-				],
+				ls: () => ['about.txt   contact.txt'],
 				cat: (args) => {
 					if (!args) return ['usage: cat &lt;filename&gt;'];
 					if (args === 'about.txt') return [
@@ -146,7 +149,7 @@
 				sudo: (args) => {
 					if (!args) return ['usage: sudo &lt;command&gt;'];
 					const responses = [
-						'Permission denied. Nice try.',
+						'Permission denied.',
 						'[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nsudo: 3 incorrect password attempts',
 						'This incident will be reported.',
 						'Error: You are not in the sudoers file.',
@@ -162,16 +165,15 @@
 							'deleting /usr...',
 							'deleting /var...',
 							'deleting /tmp...',
-							'deleting everything you hold dear...',
 							'',
-							'just kidding. nice knowing you though.',
+							'just kidding.',
 						];
 					}
-					return [`rm: refusing to do anything suspicious`];
+					return ['rm: missing operand'];
 				},
 				vim: () => {
 					vimTrapped = true;
-					input.placeholder = ':q to escape (good luck)';
+					input.placeholder = ':q';
 					return [
 						'',
 						'~',
@@ -180,30 +182,29 @@
 						'~',
 						'~',
 						'"new-file" [New File]                          0,0-1  All',
-						'you are now trapped in vim.',
 					];
 				},
-				exit: () => ['no.'],
+				exit: () => [],
 				matrix: () => {
-					runMatrix();
+					startMatrix();
 					return null;
 				},
 				man: (args) => {
-					if (!args) return ['what manual page do you want?'];
+					if (!args) return ['What manual page do you want?'];
 					if (args in COMMANDS) return [
 						`MAN(1)                    User Commands                    MAN(1)`,
 						'',
 						`NAME`,
-						`       ${args} - you already know what this does`,
+						`       ${args}`,
 						'',
 						`SYNOPSIS`,
 						`       ${args} [options] [args]`,
 						'',
 						`DESCRIPTION`,
-						`       It does the thing. You know the thing.`,
+						`       ${args} command.`,
 						'',
 						`BUGS`,
-						`       Probably. File them somewhere else.`,
+						`       None known.`,
 					];
 					return [`No manual entry for ${escapeHtml(args)}`];
 				},
@@ -244,15 +245,13 @@
 			function runCommand(raw) {
 				const trimmed = raw.trim();
 
-				// vim escape hatch
 				if (vimTrapped) {
 					printPrompt(trimmed);
 					if (trimmed === ':q' || trimmed === ':q!' || trimmed === ':wq') {
 						vimTrapped = false;
 						input.placeholder = '';
-						printLines(['you escaped vim. most never do.', '']);
 					} else {
-						printLines(['still trapped. try :q']);
+						printLines([`E492: Not an editor command: ${escapeHtml(trimmed)}`]);
 					}
 					scrollDown();
 					return;
@@ -265,12 +264,10 @@
 					return;
 				}
 
-				// handle "rm -rf /" as a special case (3 tokens)
-				const fullCmd = trimmed;
 				let cmd, args;
-				if (fullCmd.startsWith('rm ')) {
+				if (trimmed.startsWith('rm ')) {
 					cmd = 'rm';
-					args = fullCmd.slice(3).trim();
+					args = trimmed.slice(3).trim();
 				} else {
 					const parts = trimmed.split(' ');
 					cmd = parts[0];
@@ -291,62 +288,67 @@
 				terminal.scrollTop = terminal.scrollHeight;
 			}
 
-			function runMatrix() {
-				const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*';
-				const lines = 16;
-				const cols = 60;
-				let count = 0;
-				const interval = setInterval(() => {
-					let row = '';
-					for (let i = 0; i < cols; i++) {
-						row += chars[Math.floor(Math.random() * chars.length)];
-					}
-					const div = document.createElement('div');
-					div.className = 'output-line matrix-line';
-					div.textContent = row;
-					output.appendChild(div);
-					scrollDown();
-					count++;
-					if (count >= lines) {
-						clearInterval(interval);
-						printLines(['', 'wake up, neo.', '']);
-						scrollDown();
-					}
-				}, 60);
-			}
+			// --- Matrix ---
 
-			const FILES = ['about.txt', 'contact.txt'];
+			function startMatrix() {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				canvas.style.display = 'block';
+				terminal.style.display = 'none';
 
-			function tabComplete(val) {
-				const [cmd, ...rest] = val.split(' ');
-				const arg = rest.join(' ');
+				const fontSize = 14;
+				const cols = Math.floor(canvas.width / fontSize);
+				const drops = Array(cols).fill(1);
+				const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
 
-				if (rest.length === 0) {
-					const matches = Object.keys(COMMANDS).filter(c => c.startsWith(cmd));
-					if (matches.length === 1) return matches[0];
-					if (matches.length > 1) {
-						printPrompt(val);
-						printLines([matches.join('   ')]);
-						scrollDown();
+				matrixRunning = true;
+
+				function draw() {
+					if (!matrixRunning) return;
+					ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+					ctx.fillRect(0, 0, canvas.width, canvas.height);
+					ctx.fillStyle = '#33ff33';
+					ctx.font = `${fontSize}px monospace`;
+
+					for (let i = 0; i < drops.length; i++) {
+						const char = chars[Math.floor(Math.random() * chars.length)];
+						ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+						if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+							drops[i] = 0;
+						}
+						drops[i]++;
 					}
-					return val;
+					matrixFrame = requestAnimationFrame(draw);
 				}
 
-				if (cmd === 'cat') {
-					const matches = FILES.filter(f => f.startsWith(arg));
-					if (matches.length === 1) return `${cmd} ${matches[0]}`;
-					if (matches.length > 1) {
-						printPrompt(val);
-						printLines([matches.join('   ')]);
-						scrollDown();
-					}
-				}
-
-				return val;
+				draw();
 			}
+
+			function stopMatrix() {
+				matrixRunning = false;
+				if (matrixFrame) cancelAnimationFrame(matrixFrame);
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				canvas.style.display = 'none';
+				terminal.style.display = '';
+				input.focus();
+				scrollDown();
+			}
+
+			// --- Input handling ---
 
 			input.addEventListener('keydown', (e) => {
-				if (e.key === 'l' && e.ctrlKey) {
+				if (e.ctrlKey && e.key === 'c') {
+					e.preventDefault();
+					if (matrixRunning) {
+						stopMatrix();
+					}
+					if (!vimTrapped) {
+						const current = input.value;
+						input.value = '';
+						printPrompt(current + '^C');
+						scrollDown();
+					}
+				} else if (e.ctrlKey && e.key === 'l') {
 					e.preventDefault();
 					output.innerHTML = '';
 				} else if (e.key === 'Tab') {
@@ -378,7 +380,49 @@
 				}
 			});
 
+			// Ctrl+C on canvas (when matrix is running, input isn't focused)
+			document.addEventListener('keydown', (e) => {
+				if (matrixRunning && e.ctrlKey && e.key === 'c') {
+					e.preventDefault();
+					stopMatrix();
+					printPrompt('matrix^C');
+					scrollDown();
+				}
+			});
+
 			terminal.addEventListener('click', () => input.focus());
+
+			// --- Tab complete ---
+
+			const FILES = ['about.txt', 'contact.txt'];
+
+			function tabComplete(val) {
+				const [cmd, ...rest] = val.split(' ');
+				const arg = rest.join(' ');
+
+				if (rest.length === 0) {
+					const matches = Object.keys(COMMANDS).filter(c => c.startsWith(cmd));
+					if (matches.length === 1) return matches[0];
+					if (matches.length > 1) {
+						printPrompt(val);
+						printLines([matches.join('   ')]);
+						scrollDown();
+					}
+					return val;
+				}
+
+				if (cmd === 'cat') {
+					const matches = FILES.filter(f => f.startsWith(arg));
+					if (matches.length === 1) return `${cmd} ${matches[0]}`;
+					if (matches.length > 1) {
+						printPrompt(val);
+						printLines([matches.join('   ')]);
+						scrollDown();
+					}
+				}
+
+				return val;
+			}
 
 			printLines([
 				'tom@martinson v1.0.0',
