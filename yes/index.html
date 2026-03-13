@@ -113,6 +113,8 @@
 					'  cat &lt;file&gt;      —  read a file',
 					'  echo &lt;text&gt;     —  echo text',
 					'  weather &lt;city&gt;  —  current weather',
+				'  scores          —  today\'s MLB scores',
+				'  f1              —  last F1 race results',
 					'  ping &lt;host&gt;     —  ping a host',
 					'  ssh &lt;host&gt;      —  connect to remote host',
 					'  date            —  current date/time',
@@ -173,6 +175,8 @@
 				},
 				echo: (args) => [args || ''],
 				weather: (args) => { runWeather(args || ''); return null; },
+			scores: () => { runScores(); return null; },
+			f1: () => { runF1(); return null; },
 				ping: (args) => {
 					if (!args) return ['usage: ping &lt;host&gt;'];
 					runPing(args);
@@ -507,6 +511,119 @@ const opts = [
 				} catch {
 					if (output.lastChild) output.removeChild(output.lastChild);
 					printLines(['weather: unable to fetch data']);
+				}
+				scrollDown();
+			}
+
+			// ─── MLB Scores ───────────────────────────────────────────────
+
+			async function runScores() {
+				const url = `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard`;
+				printLines(['fetching scores...']);
+				scrollDown();
+				try {
+					const res = await fetch(url);
+					if (!res.ok) throw new Error();
+					const data = await res.json();
+					if (output.lastChild) output.removeChild(output.lastChild);
+
+					const events = data.events;
+					if (!events || events.length === 0) {
+						const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+						printLines([`MLB scores — ${dateStr}`, '', '  no games today']);
+						scrollDown();
+						return;
+					}
+
+					const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+					const lines = [`MLB scores — ${dateStr}`, ''];
+
+					for (const event of events) {
+						const comp = event.competitions[0];
+						const competitors = comp.competitors;
+						const away = competitors.find(c => c.homeAway === 'away');
+						const home = competitors.find(c => c.homeAway === 'home');
+						const statusType = comp.status.type;
+						const awayName = (away.team.shortDisplayName || away.team.displayName).padEnd(12);
+						const homeName = (home.team.shortDisplayName || home.team.displayName).padEnd(12);
+
+						if (statusType.completed) {
+							const awayScore = String(away.score).padStart(2);
+							const homeScore = String(home.score).padStart(2);
+							const awayWon = Number(away.score) > Number(home.score);
+							const winner = awayWon ? '←' : '→';
+							const awayColor = awayWon ? '#33ff33' : '#ff3333';
+							const homeColor = awayWon ? '#ff3333' : '#33ff33';
+							lines.push(`  <span style="color:${awayColor};text-shadow:0 0 4px ${awayColor}66">${awayName} ${awayScore}</span>  ${winner}  <span style="color:${homeColor};text-shadow:0 0 4px ${homeColor}66">${homeScore} ${homeName}</span>  Final`);
+						} else if (statusType.description === 'In Progress') {
+							const awayScore = String(away.score ?? 0).padStart(2);
+							const homeScore = String(home.score ?? 0).padStart(2);
+							const detail = comp.status.displayClock || statusType.shortDetail || '';
+							lines.push(`  ${awayName} ${awayScore}     ${homeScore} ${homeName}  ${detail}`);
+						} else {
+							const gameTime = event.date
+								? new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+								: statusType.shortDetail || '';
+							lines.push(`  ${awayName}       vs  ${homeName}  ${gameTime}`);
+						}
+					}
+					printLines(lines);
+				} catch {
+					if (output.lastChild) output.removeChild(output.lastChild);
+					printLines(['scores: unable to fetch data']);
+				}
+				scrollDown();
+			}
+
+			// ─── F1 Results ───────────────────────────────────────────────
+
+			async function runF1() {
+				const url = 'https://api.jolpi.ca/ergast/f1/current/last/results/';
+				printLines(['fetching F1 results...']);
+				scrollDown();
+				try {
+					const res = await fetch(url);
+					if (!res.ok) throw new Error();
+					const data = await res.json();
+					if (output.lastChild) output.removeChild(output.lastChild);
+
+					const race = data.MRData?.RaceTable?.Races?.[0];
+					if (!race) {
+						printLines(['f1: no results available']);
+						scrollDown();
+						return;
+					}
+
+					const lines = [
+						`${race.raceName}  —  ${race.Circuit.circuitName}`,
+						`${race.date}  |  Round ${race.round}`,
+						'',
+						'  POS  DRIVER                  TEAM                  TIME / STATUS',
+						'  ───  ──────────────────────  ────────────────────  ─────────────────',
+					];
+
+					const podiumColors = ['#ffd700', '#c0c0c0', '#cd7f32'];
+
+					for (const r of race.Results) {
+						const pos    = String(r.position).padStart(3);
+						const driver = `${r.Driver.givenName} ${r.Driver.familyName}`.padEnd(22);
+						const team   = r.Constructor.name.padEnd(20);
+						const time   = r.Time?.time ?? r.status;
+						const laps   = `${r.laps} laps`;
+
+						const posNum = Number(r.position);
+						if (posNum <= 3) {
+							const c = podiumColors[posNum - 1];
+							lines.push(`  <span style="color:${c};text-shadow:0 0 6px ${c}88">${pos}  ${driver}  ${team}  ${time}</span>`);
+						} else {
+							lines.push(`  ${pos}  ${driver}  ${team}  ${time}`);
+						}
+					}
+
+					printLines(lines);
+				} catch {
+					if (output.lastChild) output.removeChild(output.lastChild);
+					printLines(['f1: unable to fetch results']);
 				}
 				scrollDown();
 			}
