@@ -6,92 +6,68 @@
 
 html, body {
 	height: 100%;
+	background: #0a0a0a;
 }
 
 body {
-	background: #0a0a0a;
 	color: #33ff33;
 	font-family: 'Courier New', Courier, monospace;
-	font-size: 16px;
-	line-height: 1.6;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	font-size: 15px;
+	line-height: 1.7;
 }
 
-main {
+#terminal {
+	min-height: 100vh;
 	padding: 2rem;
-	max-width: 600px;
-	width: 100%;
+	max-width: 700px;
+	cursor: text;
+	overflow-y: auto;
 }
 
-.prompt {
-	font-size: 0.85rem;
-	opacity: 0.5;
-	margin-bottom: 1.5rem;
+.output-line {
+	white-space: pre-wrap;
+	min-height: 1.7em;
 }
 
-.cursor {
-	animation: blink 1s step-end infinite;
-}
-
-@keyframes blink {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0; }
-}
-
-h1 {
-	font-size: 2rem;
-	font-weight: normal;
-	letter-spacing: 0.05em;
-	margin-bottom: 0.4rem;
-}
-
-.title {
-	font-size: 0.95rem;
-	opacity: 0.75;
-	margin-bottom: 2rem;
-}
-
-a {
+.output-line a {
 	color: #33ff33;
 	text-decoration: none;
-	border-bottom: 1px solid rgba(51, 255, 51, 0.3);
-	transition: border-color 0.15s, opacity 0.15s;
+	border-bottom: 1px solid rgba(51, 255, 51, 0.35);
 }
 
-a:hover {
+.output-line a:hover {
 	border-color: #33ff33;
-	opacity: 0.8;
 }
 
-nav {
+.history-line {
+	opacity: 0.55;
+	white-space: pre-wrap;
+}
+
+.prompt-text {
+	user-select: none;
+}
+
+#input-line {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 1.5rem;
-	font-size: 0.9rem;
+	align-items: center;
+	margin-top: 0.1em;
 }
 
-nav a {
-	border-bottom: none;
-	opacity: 0.65;
-}
-
-nav a::before {
-	content: './';
-	opacity: 0.4;
-}
-
-nav a:hover {
-	opacity: 1;
+#cmd-input {
+	background: transparent;
+	border: none;
+	outline: none;
+	color: #33ff33;
+	font-family: 'Courier New', Courier, monospace;
+	font-size: 15px;
+	caret-color: #33ff33;
+	flex: 1;
+	line-height: 1.7;
 }
 
 @media (max-width: 480px) {
-	h1 {
-		font-size: 1.5rem;
-	}
-
-	nav {
-		gap: 1rem;
+	#terminal {
+		padding: 1rem;
 	}
 }

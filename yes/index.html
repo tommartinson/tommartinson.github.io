@@ -9,17 +9,382 @@
 		<link rel="icon" href="media/favicon-96x96.png" type="image/x-icon">
 	</head>
 	<body>
-		<main>
-			<p class="prompt">tom@martinson:~$<span class="cursor">_</span></p>
-			<h1>Tom Martinson</h1>
-			<p class="title">Software Engineer @ <a href="https://modalai.com">ModalAI</a></p>
-			<nav>
-				<a href="https://github.com/tommartinson">github</a>
-				<a href="https://gitlab.com/tmartinson">gitlab</a>
-				<a href="https://www.linkedin.com/in/tommartinson/">linkedin</a>
-				<a href="https://twitter.com/Tom_Martinson">twitter</a>
-				<a href="mailto:tomemartinson@gmail.com">email</a>
-			</nav>
-		</main>
+		<div id="terminal">
+			<div id="output"></div>
+			<div id="input-line">
+				<span class="prompt-text">tom@martinson:~$&nbsp;</span>
+				<input type="text" id="cmd-input" autofocus autocomplete="off" spellcheck="false" />
+			</div>
+		</div>
+		<script>
+			const output = document.getElementById('output');
+			const input = document.getElementById('cmd-input');
+			const terminal = document.getElementById('terminal');
+
+			const PROMPT = 'tom@martinson:~$';
+
+			let vimTrapped = false;
+
+			const FORTUNES = [
+				'"There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors."',
+				'"It works on my machine." — every developer, always',
+				'"rm -rf node_modules" is a spiritual experience.',
+				'"Have you tried turning it off and on again?"',
+				'"99 little bugs in the code. 99 little bugs. Take one down, patch it around. 127 little bugs in the code."',
+				'"A computer once beat me at chess, but it was no match for me at kickboxing."',
+				'"The best code is no code at all."',
+				'"I don\'t always test my code, but when I do, I do it in production."',
+				'"To understand recursion, you must first understand recursion."',
+			];
+
+			const COMMANDS = {
+				help: () => [
+					'available commands:',
+					'',
+					'  whoami          —  who is this guy',
+					'  links           —  where to find me',
+					'  ls              —  list directory',
+					'  cat &lt;file&gt;      —  read a file',
+					'  echo &lt;text&gt;     —  echo text',
+					'  date            —  current date/time',
+					'  uname           —  system info',
+					'  uptime          —  system uptime',
+					'  ps              —  running processes',
+					'  top             —  process monitor',
+					'  fortune         —  words of wisdom',
+					'  cowsay &lt;text&gt;  —  important message',
+					'  sudo &lt;cmd&gt;     —  attempt privilege escalation',
+					'  rm -rf /        —  definitely do not run this',
+					'  vim             —  you will regret this',
+					'  exit            —  (lol)',
+					'  matrix          —  engage hacker mode',
+					'  man &lt;cmd&gt;      —  read the manual',
+					'  history         —  command history',
+					'  pwd             —  current directory',
+					'  clear           —  clear terminal',
+					'  help            —  show this message',
+				],
+				whoami: () => [
+					'Tom Martinson',
+					'Software Engineer @ <a href="https://modalai.com" target="_blank">ModalAI</a>',
+				],
+				links: () => [
+					'<a href="https://github.com/tommartinson" target="_blank">github</a>       github.com/tommartinson',
+					'<a href="https://gitlab.com/tmartinson" target="_blank">gitlab</a>       gitlab.com/tmartinson',
+					'<a href="https://www.linkedin.com/in/tommartinson/" target="_blank">linkedin</a>     linkedin.com/in/tommartinson',
+					'<a href="https://twitter.com/Tom_Martinson" target="_blank">twitter</a>      twitter.com/Tom_Martinson',
+					'<a href="mailto:tomemartinson@gmail.com" target="_blank">email</a>        tomemartinson@gmail.com',
+				],
+				ls: () => [
+					'about.txt   contact.txt',
+				],
+				cat: (args) => {
+					if (!args) return ['usage: cat &lt;filename&gt;'];
+					if (args === 'about.txt') return [
+						'Name:    Tom Martinson',
+						'Role:    Software Engineer',
+						'Company: ModalAI',
+					];
+					if (args === 'contact.txt') return [
+						'Email:   tomemartinson@gmail.com',
+						'GitHub:  github.com/tommartinson',
+					];
+					return [`cat: ${escapeHtml(args)}: No such file or directory`];
+				},
+				echo: (args) => [args || ''],
+				date: () => [new Date().toString()],
+				pwd: () => ['/home/tom/definitely-not-skynet'],
+				uname: (args) => {
+					if (args === '-a' || args === '-all') {
+						return ['TomOS 0.0.1-hacker #1 SMP x86_64 powered-by-caffeine GNU/Linux'];
+					}
+					return ['TomOS'];
+				},
+				uptime: () => {
+					const jokes = [
+						'up 4 years, 2 months, 7 days — running on caffeine and spite',
+						'up 6 hours, 14 minutes — rebooted after npm install',
+						'up 999 days — send help',
+					];
+					return [jokes[Math.floor(Math.random() * jokes.length)]];
+				},
+				ps: () => [
+					'  PID  COMMAND',
+					'    1  init',
+					'  420  coffee_daemon',
+					'  666  definitely_not_mining_crypto',
+					'  777  anxiety.exe',
+					'  999  tabs_vs_spaces_debate',
+					' 1337  vim (not responding)',
+					' 2048  node_modules (consuming all resources)',
+					' 9999  todo_list_i_will_never_finish',
+				],
+				top: () => [
+					'Tasks: 42 total, 1 running, 41 sleeping',
+					'%Cpu: 0.0 us, 0.0 sy, 100.0 vim',
+					'',
+					'  PID  %CPU  COMMAND',
+					' 1337  99.9  vim',
+					'  420   0.1  coffee_daemon',
+					'  all   0.0  everything else',
+				],
+				fortune: () => [FORTUNES[Math.floor(Math.random() * FORTUNES.length)]],
+				cowsay: (args) => {
+					const msg = args || 'moo';
+					const border = '-'.repeat(msg.length + 2);
+					return [
+						` ${border}`,
+						`< ${msg} >`,
+						` ${border}`,
+						'        \\   ^__^',
+						'         \\  (oo)\\_______',
+						'            (__)\\       )\\/\\',
+						'                ||----w |',
+						'                ||     ||',
+					];
+				},
+				sudo: (args) => {
+					if (!args) return ['usage: sudo &lt;command&gt;'];
+					const responses = [
+						'Permission denied. Nice try.',
+						'[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nsudo: 3 incorrect password attempts',
+						'This incident will be reported.',
+						'Error: You are not in the sudoers file.',
+					];
+					return [responses[Math.floor(Math.random() * responses.length)]];
+				},
+				rm: (args) => {
+					if (args === '-rf /' || args === '-rf /*') {
+						return [
+							'deleting /bin...',
+							'deleting /etc...',
+							'deleting /home...',
+							'deleting /usr...',
+							'deleting /var...',
+							'deleting /tmp...',
+							'deleting everything you hold dear...',
+							'',
+							'just kidding. nice knowing you though.',
+						];
+					}
+					return [`rm: refusing to do anything suspicious`];
+				},
+				vim: () => {
+					vimTrapped = true;
+					input.placeholder = ':q to escape (good luck)';
+					return [
+						'',
+						'~',
+						'~',
+						'~',
+						'~',
+						'~',
+						'"new-file" [New File]                          0,0-1  All',
+						'you are now trapped in vim.',
+					];
+				},
+				exit: () => ['no.'],
+				matrix: () => {
+					runMatrix();
+					return null;
+				},
+				man: (args) => {
+					if (!args) return ['what manual page do you want?'];
+					if (args in COMMANDS) return [
+						`MAN(1)                    User Commands                    MAN(1)`,
+						'',
+						`NAME`,
+						`       ${args} - you already know what this does`,
+						'',
+						`SYNOPSIS`,
+						`       ${args} [options] [args]`,
+						'',
+						`DESCRIPTION`,
+						`       It does the thing. You know the thing.`,
+						'',
+						`BUGS`,
+						`       Probably. File them somewhere else.`,
+					];
+					return [`No manual entry for ${escapeHtml(args)}`];
+				},
+				history: () => {
+					if (cmdHistory.length === 0) return ['(no commands in history)'];
+					return cmdHistory.map((cmd, i) => `  ${String(i + 1).padStart(3)}  ${cmd}`);
+				},
+				clear: () => {
+					output.innerHTML = '';
+					return null;
+				},
+			};
+
+			let cmdHistory = [];
+			let historyIndex = -1;
+
+			function printLines(lines) {
+				if (!lines) return;
+				lines.forEach(line => {
+					const div = document.createElement('div');
+					div.className = 'output-line';
+					div.innerHTML = line;
+					output.appendChild(div);
+				});
+			}
+
+			function printPrompt(cmd) {
+				const div = document.createElement('div');
+				div.className = 'history-line';
+				div.innerHTML = `<span class="prompt-text">${PROMPT}&nbsp;</span>${escapeHtml(cmd)}`;
+				output.appendChild(div);
+			}
+
+			function escapeHtml(str) {
+				return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+			}
+
+			function runCommand(raw) {
+				const trimmed = raw.trim();
+
+				// vim escape hatch
+				if (vimTrapped) {
+					printPrompt(trimmed);
+					if (trimmed === ':q' || trimmed === ':q!' || trimmed === ':wq') {
+						vimTrapped = false;
+						input.placeholder = '';
+						printLines(['you escaped vim. most never do.', '']);
+					} else {
+						printLines(['still trapped. try :q']);
+					}
+					scrollDown();
+					return;
+				}
+
+				printPrompt(trimmed);
+
+				if (!trimmed) {
+					scrollDown();
+					return;
+				}
+
+				// handle "rm -rf /" as a special case (3 tokens)
+				const fullCmd = trimmed;
+				let cmd, args;
+				if (fullCmd.startsWith('rm ')) {
+					cmd = 'rm';
+					args = fullCmd.slice(3).trim();
+				} else {
+					const parts = trimmed.split(' ');
+					cmd = parts[0];
+					args = parts.slice(1).join(' ').trim() || null;
+				}
+
+				if (cmd in COMMANDS) {
+					const result = COMMANDS[cmd](args);
+					if (result) printLines(result);
+				} else {
+					printLines([`${escapeHtml(cmd)}: command not found. type 'help' for available commands.`]);
+				}
+
+				scrollDown();
+			}
+
+			function scrollDown() {
+				terminal.scrollTop = terminal.scrollHeight;
+			}
+
+			function runMatrix() {
+				const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*';
+				const lines = 16;
+				const cols = 60;
+				let count = 0;
+				const interval = setInterval(() => {
+					let row = '';
+					for (let i = 0; i < cols; i++) {
+						row += chars[Math.floor(Math.random() * chars.length)];
+					}
+					const div = document.createElement('div');
+					div.className = 'output-line matrix-line';
+					div.textContent = row;
+					output.appendChild(div);
+					scrollDown();
+					count++;
+					if (count >= lines) {
+						clearInterval(interval);
+						printLines(['', 'wake up, neo.', '']);
+						scrollDown();
+					}
+				}, 60);
+			}
+
+			const FILES = ['about.txt', 'contact.txt'];
+
+			function tabComplete(val) {
+				const [cmd, ...rest] = val.split(' ');
+				const arg = rest.join(' ');
+
+				if (rest.length === 0) {
+					const matches = Object.keys(COMMANDS).filter(c => c.startsWith(cmd));
+					if (matches.length === 1) return matches[0];
+					if (matches.length > 1) {
+						printPrompt(val);
+						printLines([matches.join('   ')]);
+						scrollDown();
+					}
+					return val;
+				}
+
+				if (cmd === 'cat') {
+					const matches = FILES.filter(f => f.startsWith(arg));
+					if (matches.length === 1) return `${cmd} ${matches[0]}`;
+					if (matches.length > 1) {
+						printPrompt(val);
+						printLines([matches.join('   ')]);
+						scrollDown();
+					}
+				}
+
+				return val;
+			}
+
+			input.addEventListener('keydown', (e) => {
+				if (e.key === 'l' && e.ctrlKey) {
+					e.preventDefault();
+					output.innerHTML = '';
+				} else if (e.key === 'Tab') {
+					e.preventDefault();
+					input.value = tabComplete(input.value);
+				} else if (e.key === 'Enter') {
+					const val = input.value;
+					if (val.trim()) {
+						cmdHistory.unshift(val);
+						historyIndex = -1;
+					}
+					input.value = '';
+					runCommand(val);
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					if (historyIndex < cmdHistory.length - 1) {
+						historyIndex++;
+						input.value = cmdHistory[historyIndex];
+					}
+				} else if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					if (historyIndex > 0) {
+						historyIndex--;
+						input.value = cmdHistory[historyIndex];
+					} else {
+						historyIndex = -1;
+						input.value = '';
+					}
+				}
+			});
+
+			terminal.addEventListener('click', () => input.focus());
+
+			printLines([
+				'tom@martinson v1.0.0',
+				'type \'help\' to see available commands.',
+				'',
+			]);
+		</script>
 	</body>
 </html>
