@@ -34,6 +34,10 @@
 			let pingRunning   = false;
 			let pingTimers    = [];
 			let booting       = true;
+			let soundEnabled  = false;
+			let audioCtx      = null;
+
+			const bootTime = Date.now();
 
 			// ─── Utilities ────────────────────────────────────────────────
 
@@ -59,7 +63,7 @@
 			}
 
 			function scrollDown() {
-				terminal.scrollTop = terminal.scrollHeight;
+				inputLine.scrollIntoView({ block: 'end' });
 			}
 
 			// ─── Commands ─────────────────────────────────────────────────
@@ -108,6 +112,7 @@
 					'  ls              —  list directory',
 					'  cat &lt;file&gt;      —  read a file',
 					'  echo &lt;text&gt;     —  echo text',
+					'  weather &lt;city&gt;  —  current weather',
 					'  ping &lt;host&gt;     —  ping a host',
 					'  ssh &lt;host&gt;      —  connect to remote host',
 					'  date            —  current date/time',
@@ -126,6 +131,7 @@
 					'  man &lt;cmd&gt;      —  read the manual',
 					'  history         —  command history',
 					'  pwd             —  current directory',
+					'  sounds on|off   —  toggle keyboard sounds',
 					'  clear           —  clear terminal',
 					'  help            —  show this message',
 				],
@@ -165,6 +171,7 @@
 					return [`cat: ${escapeHtml(args)}: No such file or directory`];
 				},
 				echo: (args) => [args || ''],
+				weather: (args) => { runWeather(args || ''); return null; },
 				ping: (args) => {
 					if (!args) return ['usage: ping &lt;host&gt;'];
 					runPing(args);
@@ -182,12 +189,12 @@
 					return ['TomOS'];
 				},
 				uptime: () => {
-					const opts = [
-						'up 4 years, 2 months, 7 days — running on caffeine and spite',
-						'up 6 hours, 14 minutes — rebooted after npm install',
-						'up 999 days — send help',
-					];
-					return [opts[Math.floor(Math.random() * opts.length)]];
+					const s = Math.floor((Date.now() - bootTime) / 1000);
+					const m = Math.floor(s / 60);
+					const h = Math.floor(m / 60);
+					if (h > 0) return [`up ${h}h ${m % 60}m ${s % 60}s`];
+					if (m > 0) return [`up ${m}m ${s % 60}s`];
+					return [`up ${s}s`];
 				},
 				ps: () => [
 					'  PID  COMMAND',
@@ -274,6 +281,11 @@ const opts = [
 				history: () => {
 					if (cmdHistory.length === 0) return ['(no commands in history)'];
 					return cmdHistory.map((cmd, i) => `  ${String(i + 1).padStart(3)}  ${cmd}`);
+				},
+				sounds: (args) => {
+					if (args === 'on')  { soundEnabled = true;  return ['sounds: enabled']; }
+					if (args === 'off') { soundEnabled = false; return ['sounds: disabled']; }
+					return [`sounds: ${soundEnabled ? 'on' : 'off'}  (usage: sounds on|off)`];
 				},
 				clear: () => { output.innerHTML = ''; return null; },
 
@@ -467,6 +479,56 @@ const opts = [
 				scrollDown();
 			}
 
+			// ─── Weather ──────────────────────────────────────────────────
+
+			async function runWeather(location) {
+				const url = `https://wttr.in/${encodeURIComponent(location)}?format=j1`;
+				printLines(['fetching weather...']);
+				scrollDown();
+				try {
+					const res = await fetch(url);
+					if (!res.ok) throw new Error();
+					const data = await res.json();
+					const area = data.nearest_area[0];
+					const city = area.areaName[0].value;
+					const country = area.country[0].value;
+					const c = data.current_condition[0];
+					// remove the last "fetching..." line
+					if (output.lastChild) output.removeChild(output.lastChild);
+					printLines([
+						`${city}, ${country}`,
+						`  ${c.weatherDesc[0].value}`,
+						`  temp:      ${c.temp_F}°F / ${c.temp_C}°C`,
+						`  feels like: ${c.FeelsLikeF}°F / ${c.FeelsLikeC}°C`,
+						`  humidity:  ${c.humidity}%`,
+						`  wind:      ${c.windspeedMiles} mph ${c.winddir16Point}`,
+					]);
+				} catch {
+					if (output.lastChild) output.removeChild(output.lastChild);
+					printLines(['weather: unable to fetch data']);
+				}
+				scrollDown();
+			}
+
+			// ─── Typing sounds ────────────────────────────────────────────
+
+			function playClick() {
+				if (!soundEnabled) return;
+				if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+				const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.015, audioCtx.sampleRate);
+				const data = buf.getChannelData(0);
+				for (let i = 0; i < data.length; i++) {
+					data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+				}
+				const src = audioCtx.createBufferSource();
+				src.buffer = buf;
+				const gain = audioCtx.createGain();
+				gain.gain.value = 0.18;
+				src.connect(gain);
+				gain.connect(audioCtx.destination);
+				src.start();
+			}
+
 			// ─── Glitch effect ────────────────────────────────────────────
 
 			function scheduleGlitch() {
@@ -488,6 +550,8 @@ const opts = [
 			// ─── Input handling ───────────────────────────────────────────
 
 			input.addEventListener('keydown', (e) => {
+				if (!e.ctrlKey && !e.metaKey && e.key.length === 1) playClick();
+
 				// Konami tracking
 				if (e.key === KONAMI[konamiIdx]) {
 					konamiIdx++;
@@ -571,6 +635,8 @@ const opts = [
 			// ─── Boot sequence ────────────────────────────────────────────
 
 			inputLine.style.display = 'none';
+			document.body.classList.add('flicker-in');
+			setTimeout(() => document.body.classList.remove('flicker-in'), 800);
 
 			const BOOT_STEPS = [
 				[0,    'TMBIOS v2.1.0'],

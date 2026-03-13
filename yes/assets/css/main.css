@@ -19,6 +19,25 @@ html, body {
 	background: #0a0a0a;
 }
 
+/* Monitor power-on flicker */
+@keyframes flicker-in {
+	0%   { opacity: 0; }
+	10%  { opacity: 0.8; }
+	14%  { opacity: 0; }
+	20%  { opacity: 0.9; }
+	24%  { opacity: 0.05; }
+	30%  { opacity: 1; }
+	38%  { opacity: 0.75; }
+	44%  { opacity: 1; }
+	54%  { opacity: 0.9; }
+	60%  { opacity: 1; }
+	100% { opacity: 1; }
+}
+
+body.flicker-in {
+	animation: flicker-in 0.8s steps(2) forwards;
+}
+
 /* CRT scanlines */
 body::after {
 	content: '';
@@ -49,11 +68,19 @@ body {
 }
 
 #terminal {
-	min-height: 100vh;
+	height: 100vh;
 	padding: 2rem;
 	max-width: 760px;
 	cursor: text;
-	overflow-y: auto;
+	overflow-y: scroll;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	scrollbar-width: none;
+}
+
+#terminal::-webkit-scrollbar {
+	display: none;
 }
 
 /* Glitch animation */
