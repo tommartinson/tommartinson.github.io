@@ -14,43 +14,100 @@
 			<div id="output"></div>
 			<div id="input-line">
 				<span class="prompt-text">tom@martinson:~$&nbsp;</span>
-				<input type="text" id="cmd-input" autofocus autocomplete="off" spellcheck="false" />
+				<input type="text" id="cmd-input" autocomplete="off" spellcheck="false" />
 			</div>
 		</div>
 		<script>
-			const output = document.getElementById('output');
-			const input = document.getElementById('cmd-input');
+			const output   = document.getElementById('output');
+			const input    = document.getElementById('cmd-input');
 			const terminal = document.getElementById('terminal');
-			const canvas = document.getElementById('matrix-canvas');
-			const ctx = canvas.getContext('2d');
+			const inputLine = document.getElementById('input-line');
+			const canvas   = document.getElementById('matrix-canvas');
+			const ctx      = canvas.getContext('2d');
 
 			const PROMPT = 'tom@martinson:~$';
 
-			let vimTrapped = false;
+			let vimTrapped    = false;
 			let matrixRunning = false;
-			let matrixFrame = null;
+			let matrixFrame   = null;
+			let hackRunning   = false;
+			let booting       = true;
+
+			// ─── Utilities ────────────────────────────────────────────────
+
+			function escapeHtml(str) {
+				return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+			}
+
+			function printLines(lines) {
+				if (!lines) return;
+				lines.forEach(line => {
+					const div = document.createElement('div');
+					div.className = 'output-line';
+					div.innerHTML = line;
+					output.appendChild(div);
+				});
+			}
+
+			function printPrompt(cmd) {
+				const div = document.createElement('div');
+				div.className = 'history-line';
+				div.innerHTML = `<span class="prompt-text">${PROMPT}&nbsp;</span>${escapeHtml(cmd)}`;
+				output.appendChild(div);
+			}
+
+			function scrollDown() {
+				terminal.scrollTop = terminal.scrollHeight;
+			}
+
+			// ─── Commands ─────────────────────────────────────────────────
 
 			const FORTUNES = [
-				'"There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors."',
+				'"There are only two hard things in CS: cache invalidation, naming things, and off-by-one errors."',
 				'"It works on my machine." — every developer, always',
 				'"rm -rf node_modules" is a spiritual experience.',
 				'"Have you tried turning it off and on again?"',
-				'"99 little bugs in the code. 99 little bugs. Take one down, patch it around. 127 little bugs in the code."',
+				'"99 little bugs in the code. Take one down, patch it around. 127 little bugs in the code."',
 				'"A computer once beat me at chess, but it was no match for me at kickboxing."',
 				'"The best code is no code at all."',
 				'"I don\'t always test my code, but when I do, I do it in production."',
 				'"To understand recursion, you must first understand recursion."',
 			];
 
+			const NEOFETCH_ART = [
+				'  _____   __  __  ',
+				' |_   _| |  \\/  | ',
+				'   | |   | |\\/| | ',
+				'   | |   | |  | | ',
+				'   |_|   |_|  |_| ',
+				'                  ',
+			];
+
+			const NEOFETCH_INFO = [
+				'tom@martinson',
+				'──────────────────────────────',
+				'OS:     TomOS 0.0.1-hacker x86_64',
+				'Host:   martinson.io',
+				'Shell:  tomsh 1.0.0',
+				'CPU:    caffeine-powered @ 3.6GHz',
+				'Uptime: way too long',
+				'Memory: 0B / ∞ GiB',
+				'Colors: \x3cspan style="color:#000;background:#33ff33">\u2588\u2588\u2588\u2588\x3c/span>\x3cspan style="color:#33ff33">\u2588\u2588\u2588\u2588\x3c/span>',
+			];
+
+			// Commands listed in help
 			const COMMANDS = {
 				help: () => [
 					'available commands:',
 					'',
 					'  whoami          —  who is this guy',
 					'  links           —  where to find me',
+					'  neofetch        —  system info',
 					'  ls              —  list directory',
 					'  cat &lt;file&gt;      —  read a file',
 					'  echo &lt;text&gt;     —  echo text',
+					'  ping &lt;host&gt;     —  ping a host',
+					'  ssh &lt;host&gt;      —  connect to remote host',
 					'  date            —  current date/time',
 					'  uname           —  system info',
 					'  uptime          —  system uptime',
@@ -58,6 +115,7 @@
 					'  top             —  process monitor',
 					'  fortune         —  words of wisdom',
 					'  cowsay &lt;text&gt;  —  important message',
+					'  hack            —  hack the mainframe',
 					'  sudo &lt;cmd&gt;     —  attempt privilege escalation',
 					'  rm -rf /        —  definitely do not run this',
 					'  vim             —  you will regret this',
@@ -80,6 +138,16 @@
 					'<a href="https://twitter.com/Tom_Martinson" target="_blank">twitter</a>      twitter.com/Tom_Martinson',
 					'<a href="mailto:tomemartinson@gmail.com" target="_blank">email</a>        tomemartinson@gmail.com',
 				],
+				neofetch: () => {
+					const lines = [];
+					const max = Math.max(NEOFETCH_ART.length, NEOFETCH_INFO.length);
+					for (let i = 0; i < max; i++) {
+						const art  = NEOFETCH_ART[i]  || '                  ';
+						const info = NEOFETCH_INFO[i] || '';
+						lines.push(`${art}  ${info}`);
+					}
+					return lines;
+				},
 				ls: () => ['about.txt   contact.txt'],
 				cat: (args) => {
 					if (!args) return ['usage: cat &lt;filename&gt;'];
@@ -95,21 +163,39 @@
 					return [`cat: ${escapeHtml(args)}: No such file or directory`];
 				},
 				echo: (args) => [args || ''],
+				ping: (args) => {
+					if (!args) return ['usage: ping &lt;host&gt;'];
+					const ms = () => (Math.random() * 18 + 0.8).toFixed(3);
+					const ttl = 64;
+					return [
+						`PING ${args}: 56 data bytes`,
+						`64 bytes from ${args}: icmp_seq=0 ttl=${ttl} time=${ms()} ms`,
+						`64 bytes from ${args}: icmp_seq=1 ttl=${ttl} time=${ms()} ms`,
+						`64 bytes from ${args}: icmp_seq=2 ttl=${ttl} time=${ms()} ms`,
+						`64 bytes from ${args}: icmp_seq=3 ttl=${ttl} time=${ms()} ms`,
+						'',
+						`--- ${args} ping statistics ---`,
+						`4 packets transmitted, 4 received, 0.0% packet loss`,
+					];
+				},
+				ssh: (args) => {
+					if (!args) return ['usage: ssh &lt;host&gt;'];
+					const host = args.includes('@') ? args.split('@')[1] : args;
+					return [`ssh: connect to host ${host} port 22: Connection refused`];
+				},
 				date: () => [new Date().toString()],
 				pwd: () => ['/home/tom/definitely-not-skynet'],
 				uname: (args) => {
-					if (args === '-a' || args === '-all') {
-						return ['TomOS 0.0.1-hacker #1 SMP x86_64 powered-by-caffeine GNU/Linux'];
-					}
+					if (args === '-a') return ['TomOS 0.0.1-hacker #1 SMP x86_64 powered-by-caffeine GNU/Linux'];
 					return ['TomOS'];
 				},
 				uptime: () => {
-					const jokes = [
+					const opts = [
 						'up 4 years, 2 months, 7 days — running on caffeine and spite',
 						'up 6 hours, 14 minutes — rebooted after npm install',
 						'up 999 days — send help',
 					];
-					return [jokes[Math.floor(Math.random() * jokes.length)]];
+					return [opts[Math.floor(Math.random() * opts.length)]];
 				},
 				ps: () => [
 					'  PID  COMMAND',
@@ -134,11 +220,11 @@
 				fortune: () => [FORTUNES[Math.floor(Math.random() * FORTUNES.length)]],
 				cowsay: (args) => {
 					const msg = args || 'moo';
-					const border = '-'.repeat(msg.length + 2);
+					const bar = '-'.repeat(msg.length + 2);
 					return [
-						` ${border}`,
+						` ${bar}`,
 						`< ${msg} >`,
-						` ${border}`,
+						` ${bar}`,
 						'        \\   ^__^',
 						'         \\  (oo)\\_______',
 						'            (__)\\       )\\/\\',
@@ -146,15 +232,19 @@
 						'                ||     ||',
 					];
 				},
+				hack: () => {
+					runHack();
+					return null;
+				},
 				sudo: (args) => {
 					if (!args) return ['usage: sudo &lt;command&gt;'];
-					const responses = [
+const opts = [
 						'Permission denied.',
 						'[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nSorry, try again.\n[sudo] password for tom: ************\nsudo: 3 incorrect password attempts',
 						'This incident will be reported.',
-						'Error: You are not in the sudoers file.',
+						'tom is not in the sudoers file.',
 					];
-					return [responses[Math.floor(Math.random() * responses.length)]];
+					return [opts[Math.floor(Math.random() * opts.length)]];
 				},
 				rm: (args) => {
 					if (args === '-rf /' || args === '-rf /*') {
@@ -174,37 +264,18 @@
 				vim: () => {
 					vimTrapped = true;
 					input.placeholder = ':q';
-					return [
-						'',
-						'~',
-						'~',
-						'~',
-						'~',
-						'~',
-						'"new-file" [New File]                          0,0-1  All',
-					];
+					return ['', '~', '~', '~', '~', '~', '"new-file" [New File]                          0,0-1  All'];
 				},
 				exit: () => [],
-				matrix: () => {
-					startMatrix();
-					return null;
-				},
+				matrix: () => { startMatrix(); return null; },
 				man: (args) => {
 					if (!args) return ['What manual page do you want?'];
 					if (args in COMMANDS) return [
 						`MAN(1)                    User Commands                    MAN(1)`,
-						'',
-						`NAME`,
-						`       ${args}`,
-						'',
-						`SYNOPSIS`,
-						`       ${args} [options] [args]`,
-						'',
-						`DESCRIPTION`,
-						`       ${args} command.`,
-						'',
-						`BUGS`,
-						`       None known.`,
+						'', `NAME`, `       ${args}`, '',
+						`SYNOPSIS`, `       ${args} [options] [args]`, '',
+						`DESCRIPTION`, `       ${args} command.`, '',
+						`BUGS`, `       None known.`,
 					];
 					return [`No manual entry for ${escapeHtml(args)}`];
 				},
@@ -212,35 +283,18 @@
 					if (cmdHistory.length === 0) return ['(no commands in history)'];
 					return cmdHistory.map((cmd, i) => `  ${String(i + 1).padStart(3)}  ${cmd}`);
 				},
-				clear: () => {
-					output.innerHTML = '';
-					return null;
-				},
+				clear: () => { output.innerHTML = ''; return null; },
+
+				// ── Hidden commands (not in help) ──
+				tom: () => ['yeah.'],
+				thanks: () => ["you're welcome."],
+				'hack the planet': () => { runHack(); return null; },
 			};
+
+			// ─── Command runner ───────────────────────────────────────────
 
 			let cmdHistory = [];
 			let historyIndex = -1;
-
-			function printLines(lines) {
-				if (!lines) return;
-				lines.forEach(line => {
-					const div = document.createElement('div');
-					div.className = 'output-line';
-					div.innerHTML = line;
-					output.appendChild(div);
-				});
-			}
-
-			function printPrompt(cmd) {
-				const div = document.createElement('div');
-				div.className = 'history-line';
-				div.innerHTML = `<span class="prompt-text">${PROMPT}&nbsp;</span>${escapeHtml(cmd)}`;
-				output.appendChild(div);
-			}
-
-			function escapeHtml(str) {
-				return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-			}
 
 			function runCommand(raw) {
 				const trimmed = raw.trim();
@@ -258,16 +312,19 @@
 				}
 
 				printPrompt(trimmed);
+				if (!trimmed) { scrollDown(); return; }
 
-				if (!trimmed) {
+				// Check hidden multi-word commands first
+				if (trimmed in COMMANDS) {
+					const result = COMMANDS[trimmed](null);
+					if (result) printLines(result);
 					scrollDown();
 					return;
 				}
 
 				let cmd, args;
 				if (trimmed.startsWith('rm ')) {
-					cmd = 'rm';
-					args = trimmed.slice(3).trim();
+					cmd = 'rm'; args = trimmed.slice(3).trim();
 				} else {
 					const parts = trimmed.split(' ');
 					cmd = parts[0];
@@ -284,14 +341,54 @@
 				scrollDown();
 			}
 
-			function scrollDown() {
-				terminal.scrollTop = terminal.scrollHeight;
+			// ─── Hack sequence ────────────────────────────────────────────
+
+			function runHack() {
+				if (hackRunning) return;
+				hackRunning = true;
+				inputLine.style.pointerEvents = 'none';
+
+				const chars = '0123456789ABCDEF';
+				const randHex = (n) => Array.from({length: n}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+				const randIp = () => Array.from({length: 4}, () => Math.floor(Math.random() * 255)).join('.');
+
+				const steps = [
+					`[*] Initializing...`,
+					`[*] Scanning ${randIp()}...`,
+					`[*] Open ports: 22/ssh  80/http  443/https  8080/http-proxy`,
+					`[*] Enumerating services...`,
+					`[+] Vulnerability found: CVE-2024-${Math.floor(Math.random()*9000+1000)}`,
+					`[*] Loading exploit...`,
+					`[*] Bypassing firewall... ${randHex(32)}`,
+					`[*] Injecting payload... ${randHex(48)}`,
+					`[+] Shell obtained: root@${randHex(8)}`,
+					`[*] Escalating privileges...`,
+					`[*] Dumping credentials... ${randHex(64)}`,
+					`[*] Exfiltrating data...`,
+					`    [${'█'.repeat(20)}] 100%`,
+					`[+] Done.`,
+					``,
+				];
+
+				let i = 0;
+				const interval = setInterval(() => {
+					if (i < steps.length) {
+						printLines([steps[i]]);
+						scrollDown();
+						i++;
+					} else {
+						clearInterval(interval);
+						hackRunning = false;
+						inputLine.style.pointerEvents = '';
+						input.focus();
+					}
+				}, 120);
 			}
 
-			// --- Matrix ---
+			// ─── Matrix ───────────────────────────────────────────────────
 
 			function startMatrix() {
-				canvas.width = window.innerWidth;
+				canvas.width  = window.innerWidth;
 				canvas.height = window.innerHeight;
 				canvas.style.display = 'block';
 				terminal.style.display = 'none';
@@ -305,7 +402,7 @@
 
 				function draw() {
 					if (!matrixRunning) return;
-					ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+					ctx.fillStyle = 'rgba(10,10,10,0.05)';
 					ctx.fillRect(0, 0, canvas.width, canvas.height);
 					ctx.fillStyle = '#33ff33';
 					ctx.font = `${fontSize}px monospace`;
@@ -313,14 +410,11 @@
 					for (let i = 0; i < drops.length; i++) {
 						const char = chars[Math.floor(Math.random() * chars.length)];
 						ctx.fillText(char, i * fontSize, drops[i] * fontSize);
-						if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-							drops[i] = 0;
-						}
+						if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
 						drops[i]++;
 					}
 					matrixFrame = requestAnimationFrame(draw);
 				}
-
 				draw();
 			}
 
@@ -334,20 +428,49 @@
 				scrollDown();
 			}
 
-			// --- Input handling ---
+			// ─── Glitch effect ────────────────────────────────────────────
+
+			function scheduleGlitch() {
+				const delay = 6000 + Math.random() * 12000;
+				setTimeout(() => {
+					terminal.classList.add('glitch');
+					setTimeout(() => {
+						terminal.classList.remove('glitch');
+						scheduleGlitch();
+					}, 250);
+				}, delay);
+			}
+
+			// ─── Konami code ──────────────────────────────────────────────
+
+			const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+			let konamiIdx = 0;
+
+			// ─── Input handling ───────────────────────────────────────────
 
 			input.addEventListener('keydown', (e) => {
+				// Konami tracking
+				if (e.key === KONAMI[konamiIdx]) {
+					konamiIdx++;
+					if (konamiIdx === KONAMI.length) {
+						konamiIdx = 0;
+						if (!matrixRunning) startMatrix();
+					}
+				} else {
+					konamiIdx = 0;
+				}
+
 				if (e.ctrlKey && e.key === 'c') {
 					e.preventDefault();
-					if (matrixRunning) {
-						stopMatrix();
+					if (matrixRunning) { stopMatrix(); printPrompt('matrix^C'); scrollDown(); return; }
+					if (hackRunning) {
+						hackRunning = false;
+						inputLine.style.pointerEvents = '';
 					}
-					if (!vimTrapped) {
-						const current = input.value;
-						input.value = '';
-						printPrompt(current + '^C');
-						scrollDown();
-					}
+					const cur = input.value;
+					input.value = '';
+					printPrompt(cur + '^C');
+					scrollDown();
 				} else if (e.ctrlKey && e.key === 'l') {
 					e.preventDefault();
 					output.innerHTML = '';
@@ -355,32 +478,21 @@
 					e.preventDefault();
 					input.value = tabComplete(input.value);
 				} else if (e.key === 'Enter') {
+					if (booting || hackRunning) return;
 					const val = input.value;
-					if (val.trim()) {
-						cmdHistory.unshift(val);
-						historyIndex = -1;
-					}
+					if (val.trim()) { cmdHistory.unshift(val); historyIndex = -1; }
 					input.value = '';
 					runCommand(val);
 				} else if (e.key === 'ArrowUp') {
 					e.preventDefault();
-					if (historyIndex < cmdHistory.length - 1) {
-						historyIndex++;
-						input.value = cmdHistory[historyIndex];
-					}
+					if (historyIndex < cmdHistory.length - 1) { historyIndex++; input.value = cmdHistory[historyIndex]; }
 				} else if (e.key === 'ArrowDown') {
 					e.preventDefault();
-					if (historyIndex > 0) {
-						historyIndex--;
-						input.value = cmdHistory[historyIndex];
-					} else {
-						historyIndex = -1;
-						input.value = '';
-					}
+					if (historyIndex > 0) { historyIndex--; input.value = cmdHistory[historyIndex]; }
+					else { historyIndex = -1; input.value = ''; }
 				}
 			});
 
-			// Ctrl+C on canvas (when matrix is running, input isn't focused)
 			document.addEventListener('keydown', (e) => {
 				if (matrixRunning && e.ctrlKey && e.key === 'c') {
 					e.preventDefault();
@@ -392,7 +504,7 @@
 
 			terminal.addEventListener('click', () => input.focus());
 
-			// --- Tab complete ---
+			// ─── Tab complete ─────────────────────────────────────────────
 
 			const FILES = ['about.txt', 'contact.txt'];
 
@@ -401,34 +513,57 @@
 				const arg = rest.join(' ');
 
 				if (rest.length === 0) {
-					const matches = Object.keys(COMMANDS).filter(c => c.startsWith(cmd));
+					const matches = Object.keys(COMMANDS).filter(c => !c.includes(' ') && c.startsWith(cmd));
 					if (matches.length === 1) return matches[0];
-					if (matches.length > 1) {
-						printPrompt(val);
-						printLines([matches.join('   ')]);
-						scrollDown();
-					}
+					if (matches.length > 1) { printPrompt(val); printLines([matches.join('   ')]); scrollDown(); }
 					return val;
 				}
 
 				if (cmd === 'cat') {
 					const matches = FILES.filter(f => f.startsWith(arg));
 					if (matches.length === 1) return `${cmd} ${matches[0]}`;
-					if (matches.length > 1) {
-						printPrompt(val);
-						printLines([matches.join('   ')]);
-						scrollDown();
-					}
+					if (matches.length > 1) { printPrompt(val); printLines([matches.join('   ')]); scrollDown(); }
 				}
 
 				return val;
 			}
 
-			printLines([
-				'tom@martinson v1.0.0',
-				'type \'help\' to see available commands.',
-				'',
-			]);
+			// ─── Boot sequence ────────────────────────────────────────────
+
+			inputLine.style.display = 'none';
+
+			const BOOT_STEPS = [
+				[0,    'TomBIOS v2.1.0'],
+				[80,   'Copyright (C) 1984-2026 TomCorp, Inc. All rights reserved.'],
+				[160,  ''],
+				[350,  'CPU: caffeine-powered @ 3.6GHz .......... OK'],
+				[500,  'RAM: 16384 MB ........................... OK'],
+				[650,  'Storage: /dev/sda1 ...................... OK'],
+				[800,  'Network: eth0 ........................... OK'],
+				[900,  ''],
+				[1050, 'Loading TomOS 0.0.1-hacker...'],
+				[1150, ''],
+				[1280, '[    0.000000] Initializing kernel...'],
+				[1400, '[    0.142857] Loading modules...'],
+				[1520, '[    0.271828] Starting services...'],
+				[1640, '[    0.314159] Mounting filesystems...'],
+				[1760, '[    0.500000] Starting network...'],
+				[1880, '[    1.000000] Boot complete.'],
+				[1980, ''],
+			];
+
+			BOOT_STEPS.forEach(([delay, text]) => {
+				setTimeout(() => { printLines([text]); scrollDown(); }, delay);
+			});
+
+			setTimeout(() => {
+				inputLine.style.display = '';
+				printLines(["type 'help' to see available commands.", '']);
+				booting = false;
+				input.focus();
+				scrollDown();
+				scheduleGlitch();
+			}, 2300);
 		</script>
 	</body>
 </html>
