@@ -1,4 +1,4 @@
-# tmartinson.com
+# martinson.io
 
 Personal site. Interactive terminal UI hosted on Firebase.
 
