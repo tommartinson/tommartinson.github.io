@@ -92,9 +92,9 @@
 			const NEOFETCH_INFO = [
 				'tom@martinson',
 				'──────────────────────────────',
-				'OS:     TomOS 0.0.1-sandiego arm64',
+				'OS:     TMOS 0.0.1-sandiego arm64',
 				'Host:   martinson.io',
-				'Shell:  tomsh 1.0.0',
+				'Shell:  tmsh 1.0.0',
 				'CPU:    celsius-powered @ 3.6GHz',
 				'Uptime: way too long',
 				'Memory: 0B / ∞ GiB',
@@ -184,10 +184,10 @@
 					return [`ssh: connect to host ${host} port 22: Connection refused`];
 				},
 				date: () => [new Date().toString()],
-				pwd: () => ['/home/tom/definitely-not-skynet'],
+				pwd: () => ['/home/tom/projects/personal/website'],
 				uname: (args) => {
-					if (args === '-a') return ['TomOS 0.0.1-sandiego #1 SMP arm64 powered-by-celsius GNU/Linux'];
-					return ['TomOS'];
+					if (args === '-a') return ['TMOS 0.0.1-sandiego #1 SMP arm64 powered-by-celsius GNU/Linux'];
+					return ['TMOS'];
 				},
 				uptime: () => {
 					const s = Math.floor((Date.now() - bootTime) / 1000);
