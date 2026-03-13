@@ -92,10 +92,10 @@
 			const NEOFETCH_INFO = [
 				'tom@martinson',
 				'──────────────────────────────',
-				'OS:     TomOS 0.0.1-hacker x86_64',
+				'OS:     TomOS 0.0.1-sandiego arm64',
 				'Host:   martinson.io',
 				'Shell:  tomsh 1.0.0',
-				'CPU:    caffeine-powered @ 3.6GHz',
+				'CPU:    celsius-powered @ 3.6GHz',
 				'Uptime: way too long',
 				'Memory: 0B / ∞ GiB',
 				'Colors: \x3cspan style="color:#000;background:#33ff33">\u2588\u2588\u2588\u2588\x3c/span>\x3cspan style="color:#33ff33">\u2588\u2588\u2588\u2588\x3c/span>',
@@ -186,7 +186,7 @@
 				date: () => [new Date().toString()],
 				pwd: () => ['/home/tom/definitely-not-skynet'],
 				uname: (args) => {
-					if (args === '-a') return ['TomOS 0.0.1-hacker #1 SMP x86_64 powered-by-caffeine GNU/Linux'];
+					if (args === '-a') return ['TomOS 0.0.1-sandiego #1 SMP arm64 powered-by-celsius GNU/Linux'];
 					return ['TomOS'];
 				},
 				uptime: () => {
@@ -200,13 +200,13 @@
 				ps: () => [
 					'  PID  COMMAND',
 					'    1  init',
-					'  420  coffee_daemon',
-					'  666  definitely_not_mining_crypto',
-					'  777  anxiety.exe',
-					'  999  tabs_vs_spaces_debate',
-					' 1337  vim (not responding)',
-					' 2048  node_modules (consuming all resources)',
-					' 9999  todo_list_i_will_never_finish',
+					'  420  celsius_daemon',
+					'  666  crypto_miner',
+					'  777  vlc',
+					'  999  voxl-portal',
+					' 1337  vim',
+					' 2048  ros_nodes (consuming all resources)',
+					' 9999  todos',
 				],
 				top: () => [
 					'Tasks: 42 total, 1 running, 41 sleeping',
@@ -214,7 +214,7 @@
 					'',
 					'  PID  %CPU  COMMAND',
 					' 1337  99.9  vim',
-					'  420   0.1  coffee_daemon',
+					'  420   0.1  celsius_daemon',
 					'  all   0.0  everything else',
 				],
 				fortune: () => [FORTUNES[Math.floor(Math.random() * FORTUNES.length)]],
