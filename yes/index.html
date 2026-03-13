@@ -31,6 +31,8 @@
 			let matrixRunning = false;
 			let matrixFrame   = null;
 			let hackRunning   = false;
+			let pingRunning   = false;
+			let pingTimers    = [];
 			let booting       = true;
 
 			// ─── Utilities ────────────────────────────────────────────────
@@ -165,18 +167,8 @@
 				echo: (args) => [args || ''],
 				ping: (args) => {
 					if (!args) return ['usage: ping &lt;host&gt;'];
-					const ms = () => (Math.random() * 18 + 0.8).toFixed(3);
-					const ttl = 64;
-					return [
-						`PING ${args}: 56 data bytes`,
-						`64 bytes from ${args}: icmp_seq=0 ttl=${ttl} time=${ms()} ms`,
-						`64 bytes from ${args}: icmp_seq=1 ttl=${ttl} time=${ms()} ms`,
-						`64 bytes from ${args}: icmp_seq=2 ttl=${ttl} time=${ms()} ms`,
-						`64 bytes from ${args}: icmp_seq=3 ttl=${ttl} time=${ms()} ms`,
-						'',
-						`--- ${args} ping statistics ---`,
-						`4 packets transmitted, 4 received, 0.0% packet loss`,
-					];
+					runPing(args);
+					return null;
 				},
 				ssh: (args) => {
 					if (!args) return ['usage: ssh &lt;host&gt;'];
@@ -385,6 +377,53 @@ const opts = [
 				}, 120);
 			}
 
+			// ─── Ping ─────────────────────────────────────────────────────
+
+			function runPing(host) {
+				pingRunning = true;
+				const count = 4;
+				const ttl = 64;
+				const ms = () => (Math.random() * 18 + 0.8).toFixed(3);
+				let sent = 0;
+				let received = 0;
+
+				printLines([`PING ${host}: 56 data bytes`]);
+				scrollDown();
+
+				for (let seq = 0; seq < count; seq++) {
+					const t = setTimeout(() => {
+						if (!pingRunning) return;
+						const time = ms();
+						received++;
+						printLines([`64 bytes from ${host}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`]);
+						scrollDown();
+
+						if (seq === count - 1) {
+							const loss = (((sent - received) / sent) * 100).toFixed(1);
+							setTimeout(() => {
+								printLines([
+									'',
+									`--- ${host} ping statistics ---`,
+									`${sent} packets transmitted, ${received} received, ${loss}% packet loss`,
+								]);
+								scrollDown();
+								pingRunning = false;
+								pingTimers = [];
+							}, 200);
+						}
+					}, (seq + 1) * 1000);
+
+					sent++;
+					pingTimers.push(t);
+				}
+			}
+
+			function stopPing() {
+				pingTimers.forEach(clearTimeout);
+				pingTimers = [];
+				pingRunning = false;
+			}
+
 			// ─── Matrix ───────────────────────────────────────────────────
 
 			function startMatrix() {
@@ -467,6 +506,7 @@ const opts = [
 						hackRunning = false;
 						inputLine.style.pointerEvents = '';
 					}
+					if (pingRunning) stopPing();
 					const cur = input.value;
 					input.value = '';
 					printPrompt(cur + '^C');
@@ -533,15 +573,15 @@ const opts = [
 			inputLine.style.display = 'none';
 
 			const BOOT_STEPS = [
-				[0,    'TomBIOS v2.1.0'],
-				[80,   'Copyright (C) 1984-2026 TomCorp, Inc. All rights reserved.'],
+				[0,    'TMBIOS v2.1.0'],
+				[80,   'Copyright (C) 1996-2026 TMCorp, Inc. All rights reserved.'],
 				[160,  ''],
-				[350,  'CPU: caffeine-powered @ 3.6GHz .......... OK'],
+				[350,  'CPU: 4 cores @ 3.6GHz ................... OK'],
 				[500,  'RAM: 16384 MB ........................... OK'],
 				[650,  'Storage: /dev/sda1 ...................... OK'],
 				[800,  'Network: eth0 ........................... OK'],
 				[900,  ''],
-				[1050, 'Loading TomOS 0.0.1-hacker...'],
+				[1050, 'Loading TMOS 0.0.1-sandiego...'],
 				[1150, ''],
 				[1280, '[    0.000000] Initializing kernel...'],
 				[1400, '[    0.142857] Loading modules...'],

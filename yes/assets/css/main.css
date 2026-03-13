@@ -28,9 +28,9 @@ body::after {
 	background: repeating-linear-gradient(
 		0deg,
 		transparent,
-		transparent 2px,
-		rgba(0, 0, 0, 0.1) 2px,
-		rgba(0, 0, 0, 0.1) 4px
+		transparent 3px,
+		rgba(0, 0, 0, 0.35) 3px,
+		rgba(0, 0, 0, 0.35) 4px
 	);
 	pointer-events: none;
 	z-index: 999;
@@ -42,7 +42,10 @@ body {
 	font-size: 15px;
 	line-height: 1.7;
 	/* Phosphor glow */
-	text-shadow: 0 0 8px rgba(51, 255, 51, 0.45);
+	text-shadow:
+		0 0 4px rgba(51, 255, 51, 0.9),
+		0 0 12px rgba(51, 255, 51, 0.6),
+		0 0 24px rgba(51, 255, 51, 0.3);
 }
 
 #terminal {
@@ -104,7 +107,10 @@ body {
 	font-family: 'Courier New', Courier, monospace;
 	font-size: 15px;
 	caret-color: #33ff33;
-	text-shadow: 0 0 8px rgba(51, 255, 51, 0.45);
+	text-shadow:
+		0 0 4px rgba(51, 255, 51, 0.9),
+		0 0 12px rgba(51, 255, 51, 0.6),
+		0 0 24px rgba(51, 255, 51, 0.3);
 	flex: 1;
 	line-height: 1.7;
 }
